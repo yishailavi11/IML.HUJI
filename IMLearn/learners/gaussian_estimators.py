@@ -53,8 +53,9 @@ class UnivariateGaussian:
         estimator is either biased or unbiased). Then sets `self.fitted_` attribute to `True`
         """
         self.fitted_ = True
-        self.mu_ = np.sum(X)/X.shape[0]
-        self.var_ = ((X - self.mu_)**2)/(X.shape[0] - 1)
+        m = X.shape[0]
+        self.mu_ = np.sum(X) / m
+        self.var_ = np.sum((X - self.mu_)**2) / (m - 1)
         return self
 
     def pdf(self, X: np.ndarray) -> np.ndarray:
@@ -100,8 +101,8 @@ class UnivariateGaussian:
         log_likelihood: float
             log-likelihood calculated
         """
-        return -(0.5/sigma)*np.sum((X-mu)**2)
-        
+        m = X.shape[0]
+        return (-0.5)*(m*np.log(2*np.pi) + m*np.log(sigma) + (1/sigma)*np.sum((X-mu)**2))
 
 
 class MultivariateGaussian:
@@ -176,7 +177,10 @@ class MultivariateGaussian:
             raise ValueError("Estimator must first be fitted before calling `pdf` function")
         d = self.mu_.shape[0]
         normalization_factor = 1/np.sqrt(((2*np.pi)**d)*det(self.cov_))
-        exponential_factor = (-0.5)*((X - self.mu_).T @ inv(self.cov_) @ (X - self.mu_))
+        centered_X = X - self.mu_.T
+        Ax = np.einsum('ij,nj->ni',inv(self.cov_),centered_X)
+        xAx = np.einsum('ni,ni->n', centered_X, Ax)
+        exponential_factor = (-0.5)*xAx
         return normalization_factor * np.exp(exponential_factor)
 
     @staticmethod
@@ -198,4 +202,8 @@ class MultivariateGaussian:
         log_likelihood: float
             log-likelihood calculated over all input data and under given parameters of Gaussian
         """
-        return (-0.5)*np.sum((X - mu).T @ inv(cov) @ (X - mu))
+        m,d = X.shape
+        centered_X = X - mu.T
+        Ax = np.einsum('ij,nj->ni',inv(cov),centered_X)
+        sum_xAx = np.einsum('ni,ni->', centered_X, Ax)
+        return (-0.5)*(m*d*np.log(2*np.pi) + m*slogdet(cov)[1] + np.sum(sum_xAx))
