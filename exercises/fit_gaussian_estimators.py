@@ -5,7 +5,6 @@ import plotly.io as pio
 pio.templates.default = "simple_white"
 from matplotlib import pyplot as plt
 
-
 def test_univariate_gaussian():
     # Question 1 - Draw samples and print fitted model
     mu = 10
@@ -17,8 +16,7 @@ def test_univariate_gaussian():
     print(uni_gauss.mu_, uni_gauss.var_)
 
     # Question 2 - Empirically showing sample mean is consistent
-    fig, (ax1, ax2) = plt.subplots(2,constrained_layout=True,figsize=(8,8))
-    #fig.tight_layout()
+    _, (ax1, ax2) = plt.subplots(2,constrained_layout=True,figsize=(8,8))
     diff = [abs(uni_gauss.fit(X[:i]).mu_ - mu) for i in range(10,num+10,10)]
     ax1.set(xlabel='Sample size',ylabel='Absolute distance')
     ax1.set_title('Distance between estimated expected value and actual expected value')
@@ -29,6 +27,7 @@ def test_univariate_gaussian():
     ax2.set(xlabel='Sample',ylabel='pdf')
     ax2.set_title('Empirical pdf')
     ax2.scatter(X,pdfs,s=7)
+    plt.show()
 
 
 def test_multivariate_gaussian():
@@ -45,11 +44,16 @@ def test_multivariate_gaussian():
     print(multi_gauss.cov_)
 
     # Question 5 - Likelihood evaluation
+    # calculate heatmap
     _x, _y = np.linspace(-10,10,200), np.linspace(-10,10,200)
-    x,y = np.meshgrid(_x,_y,sparse=True)
-    func = np.vectorize(lambda x,y: multi_gauss.log_likelihood(np.array([x,0,y,0]),cov,X))
+    x, y = np.meshgrid(_x,_y,sparse=True) # note that meshgrid reverses order- y is the first feature, x is the third
+    func = np.vectorize(lambda u,v: multi_gauss.log_likelihood(np.array([u,0,v,0]),cov,X))
     heatmap = func(x,y)
+    # plot heatmap
     plt.figure()
+    plt.xlabel('First mean feature')
+    plt.ylabel('Third mean feature')
+    plt.title('Likelihood heatmap with respect to different first and third mean features')
     plt.pcolormesh(x, y, heatmap)
     plt.colorbar()
     plt.show()
@@ -61,10 +65,5 @@ def test_multivariate_gaussian():
 
 if __name__ == '__main__':
     np.random.seed(0)
-    parameters = {"ytick.color" : "w",
-          "xtick.color" : "w",
-          "axes.labelcolor" : "w",
-          "axes.edgecolor" : "w"}
-    plt.rcParams.update(parameters)
     test_univariate_gaussian()
     test_multivariate_gaussian()

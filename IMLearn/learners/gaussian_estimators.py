@@ -52,10 +52,15 @@ class UnivariateGaussian:
         Sets `self.mu_`, `self.var_` attributes according to calculated estimation (where
         estimator is either biased or unbiased). Then sets `self.fitted_` attribute to `True`
         """
-        self.fitted_ = True
         m = X.shape[0]
         self.mu_ = np.sum(X) / m
-        self.var_ = np.sum((X - self.mu_)**2) / (m - 1)
+        var_denom = np.sum((X - self.mu_)**2)
+        if self.biased_:
+            self.var_ = var_denom / m
+        else:
+            self.var_ = var_denom / (m - 1)
+
+        self.fitted_ = True
         return self
 
     def pdf(self, X: np.ndarray) -> np.ndarray:
@@ -102,7 +107,9 @@ class UnivariateGaussian:
             log-likelihood calculated
         """
         m = X.shape[0]
-        return (-0.5)*(m*np.log(2*np.pi) + m*np.log(sigma) + (1/sigma)*np.sum((X-mu)**2))
+        return (-0.5)*(m*np.log(2*np.pi) + \
+                       m*np.log(sigma) + \
+                       (1/sigma)*np.sum((X-mu)**2))
 
 
 class MultivariateGaussian:
