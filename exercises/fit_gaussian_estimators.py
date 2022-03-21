@@ -48,18 +48,18 @@ def test_multivariate_gaussian():
     _x, _y = np.linspace(-10,10,200), np.linspace(-10,10,200)
     x, y = np.meshgrid(_x,_y,sparse=True) # note that meshgrid reverses order- y is the first feature, x is the third
     func = np.vectorize(lambda u,v: multi_gauss.log_likelihood(np.array([u,0,v,0]),cov,X))
-    heatmap = func(x,y)
+    heatmap = func(y,x)
     # plot heatmap
     plt.figure()
-    plt.xlabel('First mean feature')
-    plt.ylabel('Third mean feature')
+    plt.xlabel('Third mean feature')
+    plt.ylabel('First mean feature')
     plt.title('Likelihood heatmap with respect to different first and third mean features')
     plt.pcolormesh(x, y, heatmap)
     plt.colorbar()
     plt.show()
 
     # Question 6 - Maximum likelihood
-    xmax, ymax = np.unravel_index(heatmap.argmax(), heatmap.shape)
+    ymax, xmax = np.unravel_index(heatmap.argmax(), heatmap.shape)
     print(_y[ymax], _x[xmax])
 
 
