@@ -33,6 +33,8 @@ def split_train_test(X: pd.DataFrame, y: pd.Series, train_proportion: float = .7
         Responses of test samples
 
     """
+    X = X.sample(frac=1.)
+    y = y[X.index]
     sep_index = np.ceil(np.percentile(np.arange(len(X)),train_proportion*100)).astype(int)
     return X.iloc[:sep_index], y.iloc[:sep_index], X.iloc[sep_index:], y.iloc[sep_index:]
 

@@ -12,6 +12,7 @@ import plotly.io as pio
 pio.templates.default = "simple_white"
 from os.path import join
 from matplotlib import pyplot as plt
+from typing import List
 
 
 def load_data(filename: str):
@@ -27,23 +28,27 @@ def load_data(filename: str):
     Design matrix and response vector (prices) - either as a single
     DataFrame or a Tuple[DataFrame, Series]
     """
-    df = pd.read_csv('/home/yishailavi124/IML.HUJI/datasets/house_prices.csv')
+    df = pd.read_csv(filename)
     df.date = pd.to_datetime(df.date, errors='coerce').astype(int)
-    df = df.drop(columns=['id','date'])
     df = df.dropna()
+    df = df.drop(columns=['id','date'])
+    
 
-    positive_only = ['bedrooms', 'bathrooms', 'sqft_living', 'sqft_lot', 
+    positive_only = ['bedrooms', 'sqft_living', 'sqft_lot', 
                      'floors', 'condition', 'grade', 'sqft_above', 'price',
                      'sqft_living15', 'sqft_lot15','yr_built']
     positive_query = ''
     for feature in positive_only:
         positive_query += '(' + feature + '>0)&'
-    positive_query = positive_query[:-1]
-    df = df.query(positive_query)   
+    positive_query = positive_query + '(bathrooms > 0.5)'
+    df = df.query(positive_query) 
+    not_dummies = df.drop(columns=['zipcode','price']).columns
+    dummies = pd.get_dummies(df.zipcode)
+    df = df.join(dummies).drop(columns='zipcode')
     
     y = df.price
     X = df.drop(columns='price')
-    return X, y
+    return X, y, not_dummies
 
 
 def calc_pearson(x: pd.Series, y: pd.Series) -> float:
@@ -66,7 +71,7 @@ def calc_pearson(x: pd.Series, y: pd.Series) -> float:
     return np.cov(x, y)[0][1]/(np.std(x) * np.std(y))
 
 
-def feature_evaluation(X: pd.DataFrame, y: pd.Series, output_path: str = ".") -> NoReturn:
+def feature_evaluation(X: pd.DataFrame, y: pd.Series, output_path: str = ".", not_dummies: List[str] = None) -> NoReturn:
     """
     Create scatter plot between each feature and the response.
         - Plot title specifies feature name
@@ -83,7 +88,7 @@ def feature_evaluation(X: pd.DataFrame, y: pd.Series, output_path: str = ".") ->
     output_path: str (default ".")
         Path to folder in which plots are saved
     """
-    for i, feature in enumerate(list(X.columns)):
+    for i, feature in enumerate(list(not_dummies)):
         plt.figure(i)
         plt.xlabel(feature)
         plt.ylabel('price')
@@ -95,10 +100,10 @@ def feature_evaluation(X: pd.DataFrame, y: pd.Series, output_path: str = ".") ->
 if __name__ == '__main__':
     np.random.seed(0)
     # Question 1 - Load and preprocessing of housing prices dataset
-    X, y = load_data('../datasets/house_prices.csv')
+    X, y, not_dummies = load_data('../datasets/house_prices.csv')
 
     # Question 2 - Feature evaluation with respect to response
-    feature_evaluation(X, y, './exercises/plots/')
+    feature_evaluation(X, y, './exercises/plots/', not_dummies)
 
     # Question 3 - Split samples into training- and testing sets.
     train_X, train_y, test_X, test_y = split_train_test(X,y,0.75)
@@ -128,4 +133,8 @@ if __name__ == '__main__':
 
     plt.figure()
     plt.plot(range_arr,mean_list)
+    plt.xlabel('Train sample size')
+    plt.ylabel('Loss')
+    plt.title('Loss as a function of the sample size with confidence interval')
     plt.fill_between(range_arr, mean_list-confidence, mean_list+confidence, color='b', alpha=.1)
+    plt.show()
