@@ -31,6 +31,7 @@ class Perceptron(BaseEstimator):
             A callable to be called after each update of the model while fitting to given data
             Callable function should receive as input a Perceptron instance, current sample and current response
     """
+
     def __init__(self,
                  include_intercept: bool = True,
                  max_iter: int = 1000,
@@ -73,7 +74,20 @@ class Perceptron(BaseEstimator):
         -----
         Fits model with or without an intercept depending on value of `self.fit_intercept_`
         """
-        raise NotImplementedError()
+        self.fitted_ = True
+        X = self.__intercepted(X.copy())
+        num_features = X.shape[1] if X.ndim > 1 else 1
+        self.coefs_ = np.zeros(num_features)
+        for i in range(self.max_iter_):
+            cur_test_vec = y * (X @ self.coefs_)
+            if np.min(cur_test_vec) > 0:
+                break
+            else:
+                cur_ind = np.argmax(cur_test_vec <= 0)
+                cur_sample = X[cur_ind]
+                cur_response = y[cur_ind]
+                self.coefs_ = self.coefs_ + (cur_response * cur_sample)
+                self.callback_(self, X, y)
 
     def _predict(self, X: np.ndarray) -> np.ndarray:
         """
@@ -89,7 +103,8 @@ class Perceptron(BaseEstimator):
         responses : ndarray of shape (n_samples, )
             Predicted responses of given samples
         """
-        raise NotImplementedError()
+        y_predict = np.sign(self.__intercepted(X) @ self.coefs_)
+        return np.where(y_predict == 0, 1, y_predict)
 
     def _loss(self, X: np.ndarray, y: np.ndarray) -> float:
         """
@@ -109,4 +124,13 @@ class Perceptron(BaseEstimator):
             Performance under missclassification loss function
         """
         from ...metrics import misclassification_error
-        raise NotImplementedError()
+        return misclassification_error(y, self.predict(X))
+
+    def __intercepted(self, X: np.ndarray) -> np.ndarray:
+        """
+        Adds intercept if needed.
+        """
+        if self.include_intercept_ == True:
+            if (self.coefs_ is None) or (self.coefs_.shape[0] == X.shape[1] + 1):
+                X = np.hstack([np.ones((X.shape[0], 1)), X])
+        return X

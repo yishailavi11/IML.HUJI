@@ -39,7 +39,25 @@ class GaussianNaiveBayes(BaseEstimator):
         y : ndarray of shape (n_samples, )
             Responses of input data to fit to
         """
-        raise NotImplementedError()
+        # get problem dimensions
+        self.classes_ = np.unique(y)
+        num_classes = self.classes_.shape[0]
+        num_features = X.shape[1]
+        num_samples = X.shape[0]
+
+        # aggregate data
+        agg = np.zeros(num_classes)
+        mus = np.zeros((num_classes, num_features))
+        vars = np.zeros((num_classes, num_features))
+        for i, c in enumerate(self.classes_):
+            cur_ind = y == c
+            agg[i] = len(y[cur_ind])
+            mus[i] = np.sum(X[cur_ind], axis=0) / agg[i]
+            vars[i] = np.sum((X[cur_ind]-mus[i])**2, axis=0) / (agg[i] - 1)
+
+        self.pi_ = agg / num_samples
+        self.mu_ = mus
+        self.vars_ = vars
 
     def _predict(self, X: np.ndarray) -> np.ndarray:
         """

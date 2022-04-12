@@ -25,6 +25,7 @@ class LDA(BaseEstimator):
     self.pi_: np.ndarray of shape (n_classes)
         The estimated class probabilities. To be set in `GaussianNaiveBayes.fit`
     """
+
     def __init__(self):
         """
         Instantiate an LDA classifier
@@ -46,7 +47,30 @@ class LDA(BaseEstimator):
         y : ndarray of shape (n_samples, )
             Responses of input data to fit to
         """
-        raise NotImplementedError()
+        # get problem dimensions
+        self.classes_ = np.unique(y)
+        num_classes = self.classes_.shape[0]
+        num_features = X.shape[1]
+        num_samples = X.shape[0]
+
+        # aggregate data
+        agg = np.zeros(num_classes)
+        mus = np.zeros((num_classes, num_features))
+        cov = np.zeros((num_features, num_features))
+        for i, c in enumerate(self.classes_):
+            cur_ind = y == c
+            agg[i] = len(y[cur_ind])
+            mus[i] = np.sum(X[cur_ind], axis=0) / agg[i]
+        for i in range(num_classes):
+            centered_xi = X[i] - mus[y[i]]
+            cov = cov + (centered_xi.T @ centered_xi)
+
+        # assign data to fields
+        self.pi_ = agg / num_samples
+        self.mu_ = mus
+        self.cov_ = cov / (num_samples - num_classes)
+        self._cov_inv = inv(self.cov_)
+        self.fitted_ = True
 
     def _predict(self, X: np.ndarray) -> np.ndarray:
         """
@@ -62,7 +86,19 @@ class LDA(BaseEstimator):
         responses : ndarray of shape (n_samples, )
             Predicted responses of given samples
         """
-        raise NotImplementedError()
+        a = np.einsum('ij,kj->ki', self._cov_inv, self.mu_)
+        b = np.log(self.pi_) - 0.5 * np.einsum('ki,ki->k', self.mu_, a)
+        response = np.einsum('ki,ni->nk') + b
+        return self.classes_[np.argmax(response, axis=1)]
+
+    def likelihood_single_class(self, X, mu):
+        d = mu.shape[0]
+        normalization_factor = 1 / np.sqrt(((2 * np.pi) ** d) * det(self.cov_))
+        centered_X = X - mu
+        Ax = np.einsum('ij,nj->ni', self._cov_inv, centered_X)
+        xAx = np.einsum('ni,ni->n', centered_X, Ax)
+        exponential_factor = (-0.5) * xAx
+        return normalization_factor * np.exp(exponential_factor)
 
     def likelihood(self, X: np.ndarray) -> np.ndarray:
         """
@@ -82,7 +118,14 @@ class LDA(BaseEstimator):
         if not self.fitted_:
             raise ValueError("Estimator must first be fitted before calling `likelihood` function")
 
-        raise NotImplementedError()
+        num_classes = self.classes_.shape[0]
+        num_samples = X.shape[0]
+        res = np.zeros((num_samples, num_classes))
+
+        for i in range(num_classes):
+            res[:, i] = self.likelihood_single_class(X, self.mu_[i])
+
+        return res
 
     def _loss(self, X: np.ndarray, y: np.ndarray) -> float:
         """
@@ -102,4 +145,4 @@ class LDA(BaseEstimator):
             Performance under missclassification loss function
         """
         from ...metrics import misclassification_error
-        raise NotImplementedError()
+        return misclassification_error(y, self.predict(X))
