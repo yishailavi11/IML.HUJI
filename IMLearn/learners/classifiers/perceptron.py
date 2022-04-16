@@ -74,7 +74,6 @@ class Perceptron(BaseEstimator):
         -----
         Fits model with or without an intercept depending on value of `self.fit_intercept_`
         """
-        self.fitted_ = True
         X = self.__intercepted(X.copy())
         num_features = X.shape[1] if X.ndim > 1 else 1
         self.coefs_ = np.zeros(num_features)
@@ -83,11 +82,12 @@ class Perceptron(BaseEstimator):
             if np.min(cur_test_vec) > 0:
                 break
             else:
+                self.fitted_ = True
                 cur_ind = np.argmax(cur_test_vec <= 0)
                 cur_sample = X[cur_ind]
                 cur_response = y[cur_ind]
                 self.coefs_ = self.coefs_ + (cur_response * cur_sample)
-                self.callback_(self, X, y)
+                self.callback_(self, cur_sample, cur_response)
 
     def _predict(self, X: np.ndarray) -> np.ndarray:
         """

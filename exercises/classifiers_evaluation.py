@@ -5,6 +5,7 @@ import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 from math import atan2, pi
 from matplotlib import pyplot as plt
+from matplotlib.lines import Line2D
 
 
 def load_dataset(filename: str) -> Tuple[np.ndarray, np.ndarray]:
@@ -44,8 +45,10 @@ def run_perceptron():
 
         # Fit Perceptron and record loss in each fit iteration
         losses = []
-        def calc_loss_func(fit, train_X, train_y):
-            losses.append(fit.loss(train_X, train_y))
+
+        def calc_loss_func(fit: Perceptron, cur_x: np.ndarray, cur_y: int):
+            losses.append(fit.loss(X, y))
+
         perceptron = Perceptron(callback=calc_loss_func)
         perceptron.fit(X, y)
 
@@ -55,7 +58,7 @@ def run_perceptron():
         plt.show()
 
 
-def get_ellipse(mu: np.ndarray, cov: np.ndarray):
+def get_ellipse(mu: np.ndarray, cov: np.ndarray, ax):
     """
     Draw an ellipse centered at given location and according to specified covariance matrix
 
@@ -77,37 +80,68 @@ def get_ellipse(mu: np.ndarray, cov: np.ndarray):
     xs = (l1 * np.cos(theta) * np.cos(t)) - (l2 * np.sin(theta) * np.sin(t))
     ys = (l1 * np.sin(theta) * np.cos(t)) + (l2 * np.cos(theta) * np.sin(t))
 
-    return go.Scatter(x=mu[0] + xs, y=mu[1] + ys, mode="lines", marker_color="black")
+    return ax.scatter(mu[0] + xs, mu[1] + ys, c='black', s=2)
 
 
 def compare_gaussian_classifiers():
     """
     Fit both Gaussian Naive Bayes and LDA classifiers on both gaussians1 and gaussians2 datasets
     """
-    for f in ["gaussian1.npy", "gaussian2.npy"]:
+    for f in ["..\\datasets\\gaussian1.npy", "..\\datasets\\gaussian2.npy"]:
         # Load dataset
-        raise NotImplementedError()
+        X, y = load_dataset(f)
 
         # Fit models and predict over training set
-        raise NotImplementedError()
+        lda_classifier = LDA()
+        ng_classifier = GaussianNaiveBayes()
+        lda_classifier.fit(X, y)
+        ng_classifier.fit(X, y)
 
         # Plot a figure with two suplots, showing the Gaussian Naive Bayes predictions on the left and LDA predictions
         # on the right. Plot title should specify dataset used and subplot titles should specify algorithm and accuracy
         # Create subplots
         from IMLearn.metrics import accuracy
-        raise NotImplementedError()
 
-        # Add traces for data-points setting symbols and colors
-        raise NotImplementedError()
+        # create data for plotting
+        y_pred_lda = lda_classifier.predict(X)
+        y_pred_ng = ng_classifier.predict(X)
+        ng_acc = accuracy(y, y_pred_ng)
+        lda_acc = accuracy(y, y_pred_lda)
+
+        # scatter data
+        plt.set_cmap("Set3")
+        fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(10, 6))
+        markers = ['o', '^', 's']
+        for i in range(3):
+            ax1.scatter(X[y == i, 0], X[y == i, 1], c=y_pred_ng[y == i], marker=markers[i], label=f'True Class {i}')
+            ax2.scatter(X[y == i, 0], X[y == i, 1], c=y_pred_lda[y == i], marker=markers[i], label=f'True Class {i}')
+        ax1.set_title(f'Gaussian Naive Bayes Classifier\nAccuracy: {round(ng_acc, 5)}')
+        ax2.set_title(f'LDA Classifier\nAccuracy: {round(lda_acc, 5)}')
+
+        # add legend
+        legend_elements = []
+        legend_titles = []
+        for i in range(3):
+            legend_elements += [Line2D([0], [0], color=plt.get_cmap()(i * 0.5), lw=4),
+                                Line2D([0], [0], color='black', marker=markers[i])]
+            legend_titles += [f'Predicted class {i}', f'True class {i}']
+        fig.legend(legend_elements, legend_titles, loc='lower right')
 
         # Add `X` dots specifying fitted Gaussians' means
-        raise NotImplementedError()
+        ng_means = ng_classifier.mu_
+        lda_means = lda_classifier.mu_
+        ax1.scatter(ng_means[:, 0], ng_means[:, 1], c='black', marker='x', s=70)
+        ax2.scatter(lda_means[:, 0], lda_means[:, 1], c='black', marker='x', s=70)
 
         # Add ellipses depicting the covariances of the fitted Gaussians
-        raise NotImplementedError()
+        for i in range(3):
+            get_ellipse(ng_means[i], np.diag(ng_classifier.vars_[i]), ax1)
+            get_ellipse(lda_means[i], lda_classifier.cov_, ax2)
+
+        plt.show()
 
 
 if __name__ == '__main__':
     np.random.seed(0)
     run_perceptron()
-    # compare_gaussian_classifiers()
+    compare_gaussian_classifiers()

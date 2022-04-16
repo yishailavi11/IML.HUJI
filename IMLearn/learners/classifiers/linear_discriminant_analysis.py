@@ -61,16 +61,17 @@ class LDA(BaseEstimator):
             cur_ind = y == c
             agg[i] = len(y[cur_ind])
             mus[i] = np.sum(X[cur_ind], axis=0) / agg[i]
-        for i in range(num_classes):
+        for i in range(num_samples):
             centered_xi = X[i] - mus[y[i]]
-            cov = cov + (centered_xi.T @ centered_xi)
+            cov = cov + (centered_xi.reshape(-1, 1) @ centered_xi.reshape(1, -1))
 
         # assign data to fields
         self.pi_ = agg / num_samples
         self.mu_ = mus
         self.cov_ = cov / (num_samples - num_classes)
         self._cov_inv = inv(self.cov_)
-        self.fitted_ = True
+
+        assert np.isclose(np.sum(self.pi_), 1), np.sum(self.pi_)
 
     def _predict(self, X: np.ndarray) -> np.ndarray:
         """
@@ -86,19 +87,33 @@ class LDA(BaseEstimator):
         responses : ndarray of shape (n_samples, )
             Predicted responses of given samples
         """
-        a = np.einsum('ij,kj->ki', self._cov_inv, self.mu_)
-        b = np.log(self.pi_) - 0.5 * np.einsum('ki,ki->k', self.mu_, a)
-        response = np.einsum('ki,ni->nk') + b
-        return self.classes_[np.argmax(response, axis=1)]
+        likelihood = self.likelihood(X)
+        return self.classes_[np.argmax(likelihood, axis=1)]
+        # a = np.einsum('ij,kj->ki', self._cov_inv, self.mu_)
+        # b = np.log(self.pi_) - 0.5 * np.einsum('ki,ki->k', self.mu_, a)
+        # response = np.einsum('ki,ni->nk') + b
+        # return self.classes_[np.argmax(response, axis=1)]
 
-    def likelihood_single_class(self, X, mu):
-        d = mu.shape[0]
-        normalization_factor = 1 / np.sqrt(((2 * np.pi) ** d) * det(self.cov_))
-        centered_X = X - mu
-        Ax = np.einsum('ij,nj->ni', self._cov_inv, centered_X)
-        xAx = np.einsum('ni,ni->n', centered_X, Ax)
-        exponential_factor = (-0.5) * xAx
-        return normalization_factor * np.exp(exponential_factor)
+    # def likelihood_single_class(self, X, mu):
+    #     d = mu.shape[0]
+    #     normalization_factor = 1 / np.sqrt(((2 * np.pi) ** d) * det(self.cov_))
+    #     xAx = np.einsum('bi,ij,bj', X-mu, self._cov_inv, X-mu)
+    #     exponential_factor = (-0.5) * xAx
+    #     return normalization_factor * np.exp(exponential_factor)
+
+    def create_likelihood_func(self, X):
+        num_features = X.shape[1]
+
+        def func(i, k):
+            centered_X = X[i] - self.mu_[k]
+            # print(centered_X.shape)
+            # print(self._cov_inv.shape)
+            # mahalanobis = centered_X.reshape(1, -1) @ self._cov_inv @ centered_X.reshape(-1, 1)
+            # mahalanobis = centered_X @ self._cov_inv @ centered_X.T
+            mahalanobis = np.einsum('nbi,ij,nbj->nb', centered_X, self._cov_inv, centered_X)
+            return np.exp(-.5 * mahalanobis) / np.sqrt((2 * np.pi ** num_features) * det(self.cov_))
+
+        return func
 
     def likelihood(self, X: np.ndarray) -> np.ndarray:
         """
@@ -120,12 +135,18 @@ class LDA(BaseEstimator):
 
         num_classes = self.classes_.shape[0]
         num_samples = X.shape[0]
-        res = np.zeros((num_samples, num_classes))
+        u, v = np.meshgrid(np.arange(num_samples), np.arange(num_classes), sparse=True, indexing='ij')
+        func = self.create_likelihood_func(X)
+        return func(u, v)
 
-        for i in range(num_classes):
-            res[:, i] = self.likelihood_single_class(X, self.mu_[i])
-
-        return res
+        # num_classes = self.classes_.shape[0]
+        # num_samples = X.shape[0]
+        # res = np.zeros((num_samples, num_classes))
+        #
+        # for i in range(num_classes):
+        #     res[:, i] = self.likelihood_single_class(X, self.mu_[i])
+        #
+        # return res
 
     def _loss(self, X: np.ndarray, y: np.ndarray) -> float:
         """
