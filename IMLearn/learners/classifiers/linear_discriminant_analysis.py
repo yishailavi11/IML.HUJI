@@ -48,6 +48,8 @@ class LDA(BaseEstimator):
             Responses of input data to fit to
         """
         # get problem dimensions
+        if np.ndim(X) == 1:
+            X = X.reshape(-1, 1)
         self.classes_ = np.unique(y)
         num_classes = self.classes_.shape[0]
         num_features = X.shape[1]
@@ -71,8 +73,6 @@ class LDA(BaseEstimator):
         self.cov_ = cov / (num_samples - num_classes)
         self._cov_inv = inv(self.cov_)
 
-        assert np.isclose(np.sum(self.pi_), 1), np.sum(self.pi_)
-
     def _predict(self, X: np.ndarray) -> np.ndarray:
         """
         Predict responses for given samples using fitted estimator
@@ -87,31 +87,21 @@ class LDA(BaseEstimator):
         responses : ndarray of shape (n_samples, )
             Predicted responses of given samples
         """
+        if np.ndim(X) == 1:
+            X = X.reshape(-1, 1)
         likelihood = self.likelihood(X)
-        return self.classes_[np.argmax(likelihood, axis=1)]
-        # a = np.einsum('ij,kj->ki', self._cov_inv, self.mu_)
-        # b = np.log(self.pi_) - 0.5 * np.einsum('ki,ki->k', self.mu_, a)
-        # response = np.einsum('ki,ni->nk') + b
-        # return self.classes_[np.argmax(response, axis=1)]
-
-    # def likelihood_single_class(self, X, mu):
-    #     d = mu.shape[0]
-    #     normalization_factor = 1 / np.sqrt(((2 * np.pi) ** d) * det(self.cov_))
-    #     xAx = np.einsum('bi,ij,bj', X-mu, self._cov_inv, X-mu)
-    #     exponential_factor = (-0.5) * xAx
-    #     return normalization_factor * np.exp(exponential_factor)
+        return self.classes_[np.argmax(likelihood*self.pi_, axis=1)]
 
     def create_likelihood_func(self, X):
+        """
+        Creates a likelihood calculation function given the test data.
+        """
         num_features = X.shape[1]
 
         def func(i, k):
             centered_X = X[i] - self.mu_[k]
-            # print(centered_X.shape)
-            # print(self._cov_inv.shape)
-            # mahalanobis = centered_X.reshape(1, -1) @ self._cov_inv @ centered_X.reshape(-1, 1)
-            # mahalanobis = centered_X @ self._cov_inv @ centered_X.T
             mahalanobis = np.einsum('nbi,ij,nbj->nb', centered_X, self._cov_inv, centered_X)
-            return np.exp(-.5 * mahalanobis) / np.sqrt((2 * np.pi ** num_features) * det(self.cov_))
+            return np.exp(-.5 * mahalanobis) / np.sqrt(((2 * np.pi) ** num_features) * det(self.cov_))
 
         return func
 
@@ -133,20 +123,13 @@ class LDA(BaseEstimator):
         if not self.fitted_:
             raise ValueError("Estimator must first be fitted before calling `likelihood` function")
 
+        if np.ndim(X) == 1:
+            X = X.reshape(-1, 1)
         num_classes = self.classes_.shape[0]
         num_samples = X.shape[0]
         u, v = np.meshgrid(np.arange(num_samples), np.arange(num_classes), sparse=True, indexing='ij')
         func = self.create_likelihood_func(X)
         return func(u, v)
-
-        # num_classes = self.classes_.shape[0]
-        # num_samples = X.shape[0]
-        # res = np.zeros((num_samples, num_classes))
-        #
-        # for i in range(num_classes):
-        #     res[:, i] = self.likelihood_single_class(X, self.mu_[i])
-        #
-        # return res
 
     def _loss(self, X: np.ndarray, y: np.ndarray) -> float:
         """

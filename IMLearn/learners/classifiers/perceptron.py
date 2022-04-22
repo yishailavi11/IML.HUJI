@@ -130,7 +130,7 @@ class Perceptron(BaseEstimator):
         """
         Adds intercept if needed.
         """
-        if self.include_intercept_ == True:
+        if self.include_intercept_:
             if (self.coefs_ is None) or (self.coefs_.shape[0] == X.shape[1] + 1):
                 X = np.hstack([np.ones((X.shape[0], 1)), X])
         return X

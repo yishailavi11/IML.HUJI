@@ -53,8 +53,11 @@ def run_perceptron():
         perceptron.fit(X, y)
 
         # Plot figure of loss as function of fitting iteration
-        plt.figure()
+        plt.figure(figsize=(10, 6))
         plt.plot(np.arange(len(losses), dtype=int), losses)
+        plt.xlabel('Number of iterations')
+        plt.ylabel('Misclassification error')
+        plt.title(f'Perceptron loss as a function of the number of iterations- {n}')
         plt.show()
 
 
@@ -103,18 +106,19 @@ def compare_gaussian_classifiers():
         from IMLearn.metrics import accuracy
 
         # create data for plotting
-        y_pred_lda = lda_classifier.predict(X)
         y_pred_ng = ng_classifier.predict(X)
+        y_pred_lda = lda_classifier.predict(X)
         ng_acc = accuracy(y, y_pred_ng)
         lda_acc = accuracy(y, y_pred_lda)
 
         # scatter data
-        plt.set_cmap("Set3")
+        plt.set_cmap('gist_rainbow')
+        cmap = plt.get_cmap()
         fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(10, 6))
         markers = ['o', '^', 's']
         for i in range(3):
-            ax1.scatter(X[y == i, 0], X[y == i, 1], c=y_pred_ng[y == i], marker=markers[i], label=f'True Class {i}')
-            ax2.scatter(X[y == i, 0], X[y == i, 1], c=y_pred_lda[y == i], marker=markers[i], label=f'True Class {i}')
+            ax1.scatter(X[y == i, 0], X[y == i, 1], c=cmap(y_pred_ng[y == i]*0.5), marker=markers[i])
+            ax2.scatter(X[y == i, 0], X[y == i, 1], c=cmap(y_pred_lda[y == i]*0.5), marker=markers[i])
         ax1.set_title(f'Gaussian Naive Bayes Classifier\nAccuracy: {round(ng_acc, 5)}')
         ax2.set_title(f'LDA Classifier\nAccuracy: {round(lda_acc, 5)}')
 
@@ -122,7 +126,7 @@ def compare_gaussian_classifiers():
         legend_elements = []
         legend_titles = []
         for i in range(3):
-            legend_elements += [Line2D([0], [0], color=plt.get_cmap()(i * 0.5), lw=4),
+            legend_elements += [Line2D([0], [0], color=cmap(i * 0.5), lw=4),
                                 Line2D([0], [0], color='black', marker=markers[i])]
             legend_titles += [f'Predicted class {i}', f'True class {i}']
         fig.legend(legend_elements, legend_titles, loc='lower right')

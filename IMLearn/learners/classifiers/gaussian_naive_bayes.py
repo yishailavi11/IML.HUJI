@@ -42,6 +42,8 @@ class GaussianNaiveBayes(BaseEstimator):
             Responses of input data to fit to
         """
         # get problem dimensions
+        if np.ndim(X) == 1:
+            X = X.reshape(-1, 1)
         self.classes_ = np.unique(y)
         num_classes = self.classes_.shape[0]
         num_features = X.shape[1]
@@ -75,10 +77,15 @@ class GaussianNaiveBayes(BaseEstimator):
         responses : ndarray of shape (n_samples, )
             Predicted responses of given samples
         """
+        if np.ndim(X) == 1:
+            X = X.reshape(-1, 1)
         likelihood = self.likelihood(X)
-        return self.classes_[np.argmax(likelihood, axis=1)]
+        return self.classes_[np.argmax(likelihood * self.pi_, axis=1)]
 
     def create_likelihood_func(self, X):
+        """
+        Creates a likelihood calculation function given the test data.
+        """
         num_features = X.shape[1]
 
         def func(i, k):
@@ -106,6 +113,8 @@ class GaussianNaiveBayes(BaseEstimator):
         if not self.fitted_:
             raise ValueError("Estimator must first be fitted before calling `likelihood` function")
 
+        if np.ndim(X) == 1:
+            X = X.reshape(-1, 1)
         num_classes = self.classes_.shape[0]
         num_samples = X.shape[0]
         u, v = np.meshgrid(np.arange(num_samples), np.arange(num_classes), indexing='ij', sparse=True)

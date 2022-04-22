@@ -209,7 +209,7 @@ class MultivariateGaussian:
         log_likelihood: float
             log-likelihood calculated over all input data and under given parameters of Gaussian
         """
-        m,d = X.shape
+        m, d = X.shape
         centered_X = X - mu.T
         Ax = np.einsum('ij,nj->ni',inv(cov),centered_X)
         sum_xAx = np.einsum('ni,ni->', centered_X, Ax)
