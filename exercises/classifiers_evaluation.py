@@ -51,6 +51,7 @@ def run_perceptron():
 
         perceptron = Perceptron(callback=calc_loss_func)
         perceptron.fit(X, y)
+        print(len(losses))
 
         # Plot figure of loss as function of fitting iteration
         plt.figure(figsize=(10, 6))
